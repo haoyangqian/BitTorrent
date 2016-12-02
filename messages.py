@@ -21,3 +21,7 @@ class Handshake(object):
 class Message(object):
     def __init__(self):
         return
+
+
+class KeepAlive(Message)
+
