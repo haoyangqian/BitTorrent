@@ -40,12 +40,22 @@ class Torrent(object):
 
     def get_peers(self):
         #send request to the tracker and get response
-        print self.param_dict
-        r = requests.get(self.announce_url,params=self.param_dict)
+        self.send_request_to_tracker("started")
         #parse the response
         peer_list = self.parse_response(r)
         print peer_list
 
+    def send_request_to_tracker(self,rtype):
+        if rtype == 'started':
+            self.param_dict['event'] = 'started'
+            r = requests.get(self.announce_url,params=self.param_dict)
+        elif rtype == 'stopped':
+            self.param_dict['event'] = 'stopped'
+            r = requests.get(self.announce_url,params=self.param_dict)
+        elif rtype == 'completed':
+            self.param_dict['event'] = 'completed'
+            r = requests.get(self.announce_url,params=self.param_dict)
+            
     def file_length(self):
         info = self.info
         length = 0
@@ -70,24 +80,32 @@ class Torrent(object):
     def parse_response(self,r):
         response = bdecode(r.content)
         peers = response['peers']
-        return self.parse_ip(peers)
+        return self.parse_ip(peers,self.compact)
     
-    #parse the peer_list, every 6 bytes, first 4 is IP, last 2 is port
-    def parse_ip(self,peers):
+    #parse the peer_list, if compact == 1, every 6 bytes, first 4 is IP, last 2 is port
+    def parse_ip(self,peers,compact):
         address = ''
         peer_list = []
-        for i,c in enumerate(peers):
-            if i%6 == 4:
-                port = ord(c)*256
-            elif i%6 == 5:
-                port += ord(c)
-                address += ':' + str(port)
+        #parse the compact mode
+        if compact == 1:
+            for i,c in enumerate(peers):
+                if i%6 == 4:
+                    port = ord(c)*256
+                elif i%6 == 5:
+                    port += ord(c)
+                    address += ':' + str(port)
+                    peer_list.append(address)
+                    address = ''
+                elif i%6 == 3:
+                    address += str(ord(c))
+                else:
+                    address += str(ord(c))+ '.'
+        #parse the uncompact mode
+        else:
+            for p in peers:
+                address = p[ip] + ':' + p[port]
                 peer_list.append(address)
                 address = ''
-            elif i%6 == 3:
-                address += str(ord(c))
-            else:
-                address += str(ord(c))+'.'
         return peer_list
     
     def connect(self,peer_list):
