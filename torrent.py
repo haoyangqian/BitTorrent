@@ -1,4 +1,5 @@
 from bencode import bencode,bdecode
+from Pieces import TorrentFile
 import hashlib
 import os
 import requests
@@ -27,20 +28,21 @@ class Torrent(object):
         self.port = LOCAL_PORT
         self.param_dict = {'info_hash':self.info_hash, 'peer_id':self.peer_id, 'port':self.port, 'left':self.left, 'compact':self.compact, 'uploaded':self.upload, 'downloaded':self.download, 'no_peer_id':self.no_peer_id, 'event':self.event}
         self.piece_length = self.info['piece length']
-        pieces_hash = self.info['pieces']
+        self.pieces_hash = self.info['pieces']
+        print self.info['pieces']
         
     def __str__(self):
-        return "Torrent: announce url: %s \nfile_length: %d\ncomment:%s\ninfo_hash:%s\n" % (self.announce_url,self.file_length,self.comment,self.info_hash)
+        return "Torrent: announce url: %s \nfile_length: %d\ninfo_hash:%s\n" % (self.announce_url,self.file_length,self.info_hash)
 
     def get_torrent(self,torrent_file):
         f = open(torrent_file,'r')
         metainfo = bdecode(f.read())
-        f.close()
+        f.close()        
         return metainfo
 
     def get_peers(self):
         #send request to the tracker and get response
-        self.send_request_to_tracker("started")
+        r = self.send_request_to_tracker("started")
         #parse the response
         peer_list = self.parse_response(r)
         print peer_list
@@ -55,7 +57,8 @@ class Torrent(object):
         elif rtype == 'completed':
             self.param_dict['event'] = 'completed'
             r = requests.get(self.announce_url,params=self.param_dict)
-            
+        return r
+    
     def file_length(self):
         info = self.info
         length = 0
@@ -116,8 +119,10 @@ class Torrent(object):
 def main():
     torrent = Torrent("4.torrent")
     peer_list = torrent.get_peers()
-    
-    print torrent
+    size = 2**10*(2**10)
+    f = TorrentFile(size,'1.txt',torrent.pieces_hash,2**19)
+    print f.pieces_num
+
 
 if __name__ == "__main__":
     main()
