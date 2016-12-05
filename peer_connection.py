@@ -1,7 +1,7 @@
 import socket
-import message
+from messages import *
 
-class PeerConnection(Object):
+class PeerConnection(object):
 
     def __init__(self, self_peer_id, peer, info_hash, pieces_queue, data_queue):
         self.self_peer_id = self_peer_id
@@ -21,18 +21,29 @@ class PeerConnection(Object):
         host = tokens[0]
         port = int(tokens[1])
 
-        s = socket.socket()
-        s.connect((host, port))
 
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print host, port
+        s.connect((host, port))
+        print "connected"
+        # print s.getpeername
         return s
 
 
     def handshake(self):
+        m = create_hanshake_message(self.info_hash, self.self_peer_id)
+
+        self.socket.send(str(m))
+        payload = self.socket.recv(1024)
+        handshake_response = create_handshake_message_from_payload(payload)
+        print handshake_response
+        print handshake_response.info_hash
+        print self.info_hash
+        return
 
 
-
-
-    def download_piece(self)
+    def download_piece(self):
+        return
 
 
 
