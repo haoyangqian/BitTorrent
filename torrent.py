@@ -8,13 +8,14 @@ import string
 import threading
 import time
 import Queue
+from peer_connection import PeerConnection
 
 PEER_ID_START = '-UT1000-'
 LOCAL_PORT = 6888
 
 class Torrent(object):
     def __init__(self,torrent_file):
-        ## 
+        ##
         self.metainfo = self.get_torrent(torrent_file)
         self.announce_url = self.metainfo['announce']
         self.info = self.metainfo['info']
@@ -48,7 +49,7 @@ class Torrent(object):
         self.peer_list = self.get_peers()
         ## get torrent_file
         self.torrent_file = TorrentFile(self.file_length,self.pieces_hash_array,self.piece_length,self.tmp_file)
-        
+
     def __str__(self):
         return "Torrent: announce url: %s \nfile_length: %d\ninfo_hash:%s\n" % (self.announce_url,self.file_length,self.info_hash)
 
@@ -58,18 +59,18 @@ class Torrent(object):
             pieces_array.append(pieces_hash[0:20])
             pieces_hash = pieces_hash[20:]
         return pieces_array
-    
+
     def get_torrent(self,torrent_file):
         f = open(torrent_file,'r')
         metainfo = bdecode(f.read())
-        f.close()        
+        f.close()
         return metainfo
 
     def get_peers(self):
         #send request to the tracker and get response
         r = self.send_request_to_tracker("started")
         #parse the response
-        peer_list = self.parse_response(r)
+        return self.parse_response(r)
 
     def send_request_to_tracker(self,rtype):
         if rtype == 'started':
@@ -82,14 +83,14 @@ class Torrent(object):
             self.param_dict['event'] = 'completed'
             r = requests.get(self.announce_url,params=self.param_dict)
         return r
-    
+
     def file_length(self):
         info = self.info
         length = 0
-        #if it only contains a single file, get the file length 
+        #if it only contains a single file, get the file length
         if 'length' in info:
             length = info['length']
-        #else get the total length of every files 
+        #else get the total length of every files
         else:
             files = info['files']
             for fileDict in files:
@@ -102,13 +103,13 @@ class Torrent(object):
         end = ''.join(random.choice(string.ascii_lowercase + string.digits) for x in range(N))
         peer_id = PEER_ID_START + end
         return peer_id
-    
+
     #parse response from tracker, return a peer list
     def parse_response(self,r):
         response = bdecode(r.content)
         peers = response['peers']
         return self.parse_ip(peers,self.compact)
-    
+
     #parse the peer_list, if compact == 1, every 6 bytes, first 4 is IP, last 2 is port
     def parse_ip(self,peers,compact):
         address = ''
@@ -134,8 +135,19 @@ class Torrent(object):
                 peer_list.append(address)
                 address = ''
         return peer_list
-    
-    def connect(self,peer_list):
+
+    def connect(self):
+        print self.peer_list
+        peer = self.peer_list[2]
+
+        peer_connection = PeerConnection(self.generate_peer_id(),
+                                         peer,
+                                         self.info_hash,
+                                         Queue(),
+                                         Queue())
+
+        peer_connection.handshake()
+
         return
 
 
