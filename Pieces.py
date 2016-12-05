@@ -8,36 +8,37 @@ class Block(object):
     def __init__(self,block_offset,block_size):
         self.block_offset = block_offset*block_size
         self.block_size = block_size
-        self.complete = True
-    
-    def is_complete(self):
-        return self.complete
+        self.payload = None
 
-    def set_complete(self,complete):
-        self.complete = complete
+    def is_complete(self):
+        return self.payload == None
 
     def get_info(self):
         print "-- block offset:" ,self.block_offset ,"  block size:" ,       self.block_size
-    
+
+    def set_payload(self, payload):
+        self.payload = payload
 
 class Piece(object):
     def __init__(self,piece_index,piece_size,fs,piece_hash):
         self.block_num = piece_size / BLOCK_SIZE
-        self.block_list = []
+        self.block_list = dict()
         self.piece_index = piece_index
         self.piece_size = piece_size
         self.piece_hash = piece_hash
         for block in range(self.block_num):
-            self.block_list.append(Block(block,BLOCK_SIZE))
+            b = Block(block, BLOCK_SIZE)
+            self.block_list[b.block_offset] = b
         #if have extra smaller blocks
         if piece_size % BLOCK_SIZE != 0:
             last_block_size = piece_size % BLOCK_SIZE
-            self.block_list.append(Block(self.block_num,last_block_size));
+            b = Block(self.block_num,last_block_size)
+            self.block_list[b.block_offset] = b
             self.block_num += 1
         self.bm = BitMap(self.block_num)
         self.file = fs
         return
-    
+
     #check block's bitmap and the whole SHA1
     def is_complete(self):
         self.update_bitmap()
@@ -48,7 +49,7 @@ class Piece(object):
         return self.bm.all() and piecehash == self.piece_hash
 
     def update_bitmap(self):
-        for i in range(self.block_num):
+        for i in self.block_list:
             if self.block_list[i].is_complete():
                 self.bm.set(i)
             else:
@@ -72,16 +73,16 @@ class TorrentFile(object):
             self.piece_list.append(Piece(self.pieces_num,last_piece_size,fs,pieces_hash_array[self.pieces_num]));
             self.pieces_num += 1
         self.bm = BitMap(self.pieces_num)
-        
+
     def update_bitmap(self):
          for i in range(self.pieces_num):
             if self.piece_list[i].is_complete():
                 self.bm.set(i)
             else:
                 self.bm.reset(i)
-                    
+
     def is_complete(self):
-         self.update_bitmap()
+         # self.update_bitmap()
          return self.bm.all()
 
     def missing_pieces(self):
