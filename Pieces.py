@@ -8,8 +8,7 @@ class Block(object):
     def __init__(self,block_offset,block_size):
         self.block_offset = block_offset*block_size
         self.block_size = block_size
-        self.complete = True
-    
+        self.complete = False
     def is_complete(self):
         return self.complete
 
@@ -37,7 +36,10 @@ class Piece(object):
         self.bm = BitMap(self.block_num)
         self.file = fs
         return
-    
+
+    ## get file content
+    def get_file_content(self):
+        return
     #check block's bitmap and the whole SHA1
     def is_complete(self):
         self.update_bitmap()

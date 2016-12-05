@@ -9,6 +9,7 @@ import threading
 import time
 import Queue
 from peer_connection import PeerConnection
+from bitmap import BitMap
 
 PEER_ID_START = '-UT1000-'
 LOCAL_PORT = 6888
@@ -168,67 +169,10 @@ class Torrent(object):
             #checkbitmap
         return
     
-
-threadList = ["Thread-1", "Thread-2", "Thread-3"]
-nameList = ["One", [2,3,4], "Three", 4, "Five"]
-queueLock = threading.Lock()
-pieces_queue = Queue.Queue(10)
-data_queue = Queue.Queue(1)
-
-class myThread (threading.Thread):
-    def __init__(self, threadID, name, q1 , q2):
-        threading.Thread.__init__(self)
-        self.threadID = threadID
-        self.name = name
-        self.q = q1
-        self.q2 = q2
-    def run(self):
-        print "Starting " + self.name + "\n"
-        download_data(self.name, self.q)
-        print "Exiting " + self.name +"\n"
-
-def download_data(threadName, q):
-    while not exitFlag:
-        queueLock.acquire()
-        if not q.empty():
-            data = q.get()
-            queueLock.release()
-            print "%s download %s\n" % (threadName, data)
-        else:
-            queueLock.release()
-        time.sleep(1)
-
 def main():
-    #torrent = Torrent("4.torrent")
+    torrent = Torrent("4.torrent")
     #print torrent.torrent_file.is_complete()
-    global exitFlag
-    exitFlag = 0
-    threads = []
-    threadID = 1
-    for tName in threadList:
-        thread = myThread(threadID, tName, pieces_queue,data_queue)
-        thread.start()
-        threads.append(thread)
-        threadID += 1
 
-    # Fill the queue
-    queueLock.acquire()
-    for word in nameList:
-        pieces_queue.put(word)
-    queueLock.release()
-
-    # Wait for queue to empty
-    while not pieces_queue.empty():
-        pass
-    
-    # Notify threads it's time to exit
-    exitFlag = 1
-
-    # Wait for all threads to complete
-    for t in threads:
-        t.join()
-    print "Exiting Main Thread"
-    
-
+                    
 if __name__ == "__main__":
     main()
