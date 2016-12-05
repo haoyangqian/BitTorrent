@@ -1,4 +1,5 @@
 from bitmap import BitMap
+import hashlib
 
 BLOCK_SIZE = 2**14
 PIECE_SIZE = 2**19
@@ -20,11 +21,12 @@ class Block(object):
     
 
 class Piece(object):
-    def __init__(self,piece_index,piece_size):
+    def __init__(self,piece_index,piece_size,fs,piece_hash):
         self.block_num = piece_size / BLOCK_SIZE
         self.block_list = []
         self.piece_index = piece_index
         self.piece_size = piece_size
+        self.piece_hash = piece_hash
         for block in range(self.block_num):
             self.block_list.append(Block(block,BLOCK_SIZE))
         #if have extra smaller blocks
@@ -33,13 +35,17 @@ class Piece(object):
             self.block_list.append(Block(self.block_num,last_block_size));
             self.block_num += 1
         self.bm = BitMap(self.block_num)
+        self.file = fs
         return
     
     #check block's bitmap and the whole SHA1
     def is_complete(self):
         self.update_bitmap()
         #check SHA1
-        return self.bm.all()
+        self.file.seek(self.piece_index * self.piece_size)
+        content = self.file.read(self.piece_size)
+        piecehash = hashlib.sha1(content).digest()
+        return self.bm.all() and piecehash == self.piece_hash
 
     def update_bitmap(self):
         for i in range(self.block_num):
@@ -55,18 +61,15 @@ class Piece(object):
 
 
 class TorrentFile(object):
-    def __init__(self,file_length,file_name,pieces_hash,piece_size):
-        fs = open(file_name,'w+')
-        fs.seek(file_length)
-        fs.write('\0')
+    def __init__(self,file_length,pieces_hash_array,piece_size,fs):
         self.pieces_num = file_length/PIECE_SIZE
         self.piece_list = []
         for piece in range(self.pieces_num):
-            self.piece_list.append(Piece(piece,piece_size));
+            self.piece_list.append(Piece(piece,piece_size,fs,pieces_hash_array[piece]));
         #if have extra smaller pieces
         if file_length % PIECE_SIZE != 0:
             last_piece_size = file_length % piece_size
-            self.piece_list.append(Piece(self.pieces_num,last_piece_size));
+            self.piece_list.append(Piece(self.pieces_num,last_piece_size,fs,pieces_hash_array[self.pieces_num]));
             self.pieces_num += 1
         self.bm = BitMap(self.pieces_num)
         
@@ -80,6 +83,14 @@ class TorrentFile(object):
     def is_complete(self):
          self.update_bitmap()
          return self.bm.all()
+
+    def missing_pieces(self):
+        self.update_bitmap()
+        missing_list = []
+        for i in range(self.pieces_num):
+            if not bm.test(i):
+                missing_list.append(i)
+        return missing_list
 
     def get_info(self):
         for i in range(self.pieces_num):
