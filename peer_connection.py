@@ -166,10 +166,11 @@ class PeerConnection(object):
             msg = self.receive_next_message()
             print "message received is ", msg, len(msg)
 
-
-
-
-
-
-
+        self.socket.send(str(m))
+        payload = self.socket.recv(1024)
+        handshake_response = create_handshake_message_from_payload(payload)
+        print handshake_response
+        print handshake_response.info_hash
+        print self.info_hash
+        return
 

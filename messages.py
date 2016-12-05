@@ -29,6 +29,7 @@ def create_handshake_message_from_payload(payload):
         print "empty handshake message"
         sys.exit(-1)
 
+    print "creating handshake message from payload", payload, "$$$"
     pstr_len = payload[0]
     pstr = payload[1:20]
     reserved = payload[20:28]

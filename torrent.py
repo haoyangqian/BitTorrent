@@ -151,7 +151,6 @@ class Torrent(object):
 
         return connected_peers
 
-
     def setup_temp_file(self):
         self.folder_directory = self.folder_name.rsplit('.',1)[0]
         self.temp_file_path = path.join(self.folder_directory, self.folder_name + '.tmp')
