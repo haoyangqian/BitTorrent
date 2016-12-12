@@ -139,7 +139,7 @@ class Torrent(object):
 
         connected_peers = []
         for peer in self.peer_list:
-            peer_connection = PeerConnection(self.generate_peer_id(),
+            peer_connection = PeerConnection(self.peer_id,
                                              peer,
                                              self.info_hash)
 
@@ -169,7 +169,7 @@ class Torrent(object):
         return
 
 def main():
-    torrent = Torrent("4.torrent")
+    torrent = Torrent("1.torrent")
     torrent.connect()
     print torrent.torrent_file.is_complete()
 

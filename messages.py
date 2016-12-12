@@ -65,7 +65,7 @@ class PeerMessage(object):
         return len(self.msg)
 
     def to_bytes(self):
-        return int_to_bytes(1) + chr(self.msg_id)
+        return struct.pack("!IB", 1, self.msg_id)
 
 
 class KeepAliveMessage(PeerMessage):
@@ -86,7 +86,7 @@ class RequestMessage(PeerMessage):
         self.length = length
 
     def to_bytes(self):
-        result = struct.pack('>IbIII',
+        result = struct.pack('!IbIII',
                            13,
                            MSG_REQUEST,
                            self.index,
@@ -138,7 +138,7 @@ def parse_message(msg_len, msg):
     elif msg_id == MSG_BITFIELD:
         return BitfieldMessage(msg_len, msg_id, msg)
     elif msg_id == MSG_PIECE:
-        return PieceMessage(msg_id, msg)
+        return PieceMessage(msg_len, msg_id, msg)
 
     return PeerMessage(msg_id, msg)
 

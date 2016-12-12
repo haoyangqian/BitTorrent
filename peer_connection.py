@@ -52,6 +52,7 @@ class PeerConnection(object):
 
         self.currently_interested_piece = None
         self.currently_requested_blocks = Set([])
+        self.currently_requested_block = None
 
     def establish_connection(self, peer):
         tokens = peer.split(":")
@@ -116,6 +117,7 @@ class PeerConnection(object):
 
     def download_piece(self, piece):
         self.job_queue.put(piece)
+        self.current_piece = piece
         return
 
     def start_download(self):
@@ -151,14 +153,11 @@ class PeerConnection(object):
             size_received += len(next_chunk)
 
         parsed_msg = parse_message(message_length, message)
-        # print "received msg", message_length, "*",  parsed_msg.msg_id, message
         return parsed_msg
-
-    def make_message(self, len, m):
-        return
 
     def handle_msg(self, msg):
         if msg is None:
+            print "empty message, return"
             return
 
         if msg.msg_id == MSG_KEEPALIVE:
@@ -197,10 +196,10 @@ class PeerConnection(object):
 
     def handle_piece_msg(self, msg):
         print "handling PIECE msg from peer", self.peer
-        block_offset = msg.begin
-        block = msg.block
-        self.current_piece.block_list[block_offset].set_payload(block)
-        self.check_for_piece_completion()
+        # block_offset = msg.begin
+        # block = msg.block
+        # self.current_piece.block_list[block_offset].set_payload(block)
+        # self.check_for_piece_completion()
 
     def check_for_piece_completion(self):
         for block_offset in self.current_piece.block_list:
@@ -266,9 +265,18 @@ class PeerConnection(object):
             if len(self.currently_requested_blocks) > 10:
                 continue
 
-                # self.send_request_message(Block(0, i * 2**14, 2**19))
-            self.send_request_message(Block(0, 0, 2**14))
-            time.sleep(10)
+            if self.is_idle() and not self.job_queue.empty():
+                self.currently_interested_piece = self.job_queue.get()
+                self.update_state(STATE_BUSY)
+
+            if self.is_busy():
+                block = self.get_next_block_to_request()
+                self.send_request_message(block)
+
+
+            # self.send_request_message(Block(0, i * 2**14, 2**19))
+            # self.send_request_message(Block(0, 0, 2**14))
+            # time.sleep(10)
             # for block in currently_interested_piece.blocks_list:
             #     if block not in self.currently_requested_blocks:
             #         self.currently_requested_blocks.add(block)
