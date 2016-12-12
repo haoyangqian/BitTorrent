@@ -5,8 +5,13 @@ BLOCK_SIZE = 2**14
 PIECE_SIZE = 2**19
 
 class Block(object):
-    def __init__(self,block_offset,block_size):
-        self.block_offset = block_offset*block_size
+    def __init__(self, piece_index, block_offset, block_size):
+
+        self.missing = True
+        self.pending = False
+
+        self.piece_index = piece_index
+        self.block_offset = block_offset * block_size
         self.block_size = block_size
         self.payload = None
 
@@ -16,7 +21,12 @@ class Block(object):
     def get_info(self):
         print "-- block offset:" ,self.block_offset ,"  block size:" ,       self.block_size
 
+    def mark_pending(self):
+        self.pending = True
+
     def set_payload(self, payload):
+        self.missing = False
+        self.pending = False
         self.payload = payload
 
 class Piece(object):
@@ -27,12 +37,12 @@ class Piece(object):
         self.piece_size = piece_size
         self.piece_hash = piece_hash
         for block in range(self.block_num):
-            b = Block(block, BLOCK_SIZE)
+            b = Block(piece_index, block, BLOCK_SIZE)
             self.block_list[b.block_offset] = b
         #if have extra smaller blocks
         if piece_size % BLOCK_SIZE != 0:
             last_block_size = piece_size % BLOCK_SIZE
-            b = Block(self.block_num,last_block_size)
+            b = Block(piece_index, self.block_num, last_block_size)
             self.block_list[b.block_offset] = b
             self.block_num += 1
         self.bm = BitMap(self.block_num)

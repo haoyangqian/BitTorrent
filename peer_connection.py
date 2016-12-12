@@ -4,6 +4,8 @@ from Queue import Queue
 from Pieces import *
 import bitmap
 from threading import Thread
+from sets import Set
+import time
 
 TCP_CONNECTION_TIMEOUT = 2
 
@@ -19,21 +21,23 @@ MESSAGE_LEN_SIZE = 4
 HANDSHAKE_MESSAGE_LEN = 49 + len(BT_PROTOCOL)
 
 def parse_message_length(bytestring):
-    '''bytestring assumed to be 4 bytes long and represents 1 number'''
-    number = 0
-    i = 3
-    for byte in bytestring:
-        try:
-            number += ord(byte) * 256**i
-        except(TypeError):
-            number += byte * 256**i
-        i -= 1
-    return number
+    return struct.unpack("!I", bytestring)[0]
+    # '''bytestring assumed to be 4 bytes long and represents 1 number'''
+    # number = 0
+    # i = 3
+    # for byte in bytestring:
+    #     try:
+    #         number += ord(byte) * 256**i
+    #     except(TypeError):
+    #         number += byte * 256**i
+    #     i -= 1
+    # return number
 
 class PeerConnection(object):
 
     def __init__(self, self_peer_id, peer, info_hash):
         self.self_peer_id = self_peer_id
+        self.peer = peer
         self.job_queue = Queue()
         self.complete_queue = Queue()
         self.info_hash = info_hash
@@ -45,6 +49,9 @@ class PeerConnection(object):
 
         self.state = STATE_INITIALIZED
         self.establish_connection(peer)
+
+        self.currently_interested_piece = None
+        self.currently_requested_blocks = Set([])
 
     def establish_connection(self, peer):
         tokens = peer.split(":")
@@ -64,8 +71,11 @@ class PeerConnection(object):
             self.socket.settimeout(None)
         except socket.timeout:
             self.close()
+        except socket.error:
+            self.close()
 
     def close(self):
+        print "#close, closing the connection"
         self.update_state(STATE_CLOSED)
 
     def update_state(self, state):
@@ -88,6 +98,9 @@ class PeerConnection(object):
 
     def is_choked(self):
         return self.am_choking
+
+    def should_receive_messages(self):
+        return not self.is_closed()
 
     def handshake(self):
         m = create_hanshake_message(self.info_hash, self.self_peer_id)
@@ -113,40 +126,77 @@ class PeerConnection(object):
         return
 
     def receive_next_message(self):
-        message_length = parse_message_length(self.socket.recv(MESSAGE_LEN_SIZE))
-        message = self.socket.recv(message_length)
+        try:
+            message_length_raw = self.socket.recv(MESSAGE_LEN_SIZE)
+        except socket.error, e:
+            print "Peer", self.peer, "has closed connection"
+            self.close()
+            return None
 
-        # return self.make_message(message_length, message)
-        return message
+        if message_length_raw == "" or message_length_raw is None:
+            print "Peer", self.peer, "has closed connection"
+            self.close()
+            return None
+
+        message_length = parse_message_length(message_length_raw)
+        print "message length is ", message_length
+
+        message = ""
+        size_received = 0
+
+        while size_received != message_length:
+            print "looping to get the next message"
+            next_chunk = self.socket.recv(message_length - size_received)
+            message += next_chunk
+            size_received += len(next_chunk)
+
+        parsed_msg = parse_message(message_length, message)
+        # print "received msg", message_length, "*",  parsed_msg.msg_id, message
+        return parsed_msg
 
     def make_message(self, len, m):
         return
 
     def handle_msg(self, msg):
-        if msg.id == 0:
+        if msg is None:
+            return
+
+        if msg.msg_id == MSG_KEEPALIVE:
+            self.handle_keepalive_msg(msg)
+        elif msg.msg_id == MSG_CHOKE:
             self.handle_choke_msg(msg)
-        elif message.id == 1:
+        elif msg.msg_id == MSG_UNCHOKE:
             self.handle_unchoke_msg(msg)
-        elif message.id == 4:
+        elif msg.msg_id == MSG_HAVE:
             self.handle_have_msg(msg)
-        elif message.id == 5:
+        elif msg.msg_id == MSG_BITFIELD:
             self.handle_bitfield_msg(msg)
-        elif message.id == 7:
+        elif msg.msg_id == MSG_PIECE:
             self.handle_piece_msg(msg)
+        else:
+            print "received unsupported message"
+
+    def handle_keepalive_msg(self, msg):
+        print "handling KEEP ALIVE msg from peer", self.peer
 
     def handle_choke_msg(self, msg):
+        print "handling CHOKE msg from peer", self.peer
         self.am_choking = True
 
     def handle_unchoke_msg(self, msg):
+        print "handling UNCHOKE msg from peer", self.peer
         self.am_choking = False
 
     def handle_have_msg(self, msg):
+        print "handling HAVE msg from peer", self.peer
         self.available_pieces.set(msg.piece_index)
 
-    def handle_bitfiled_msg(self, msg):
-        self.available_pieces = bitmap.fromstring(msg.bitfield)
+    def handle_bitfield_msg(self, msg):
+        print "handling BITFIELD msg from peer", self.peer
+        self.available_pieces = msg.bitfield
 
     def handle_piece_msg(self, msg):
+        print "handling PIECE msg from peer", self.peer
         block_offset = msg.begin
         block = msg.block
         self.current_piece.block_list[block_offset].set_payload(block)
@@ -158,19 +208,78 @@ class PeerConnection(object):
                 return
 
         self.complete_queue.put(self.current_piece)
-        self.update_state(STATE_IDLE)
+        self.update_state(STATE_IDLasdfasE)
         self.current_piece = None
 
-    def run(self):
-        while True:
-            msg = self.receive_next_message()
-            print "message received is ", msg, len(msg)
+    def send_interested_message(self):
+        print "Sending INTERESTED message to peer", self.peer
+        msg = create_interested_message()
+        self.interested = True
 
-        self.socket.send(str(m))
-        payload = self.socket.recv(1024)
-        handshake_response = create_handshake_message_from_payload(payload)
-        print handshake_response
-        print handshake_response.info_hash
-        print self.info_hash
+        try:
+            self.socket.send(msg.to_bytes())
+        except socket.error, e:
+            print "could not send data to peer", self.peer
+            return
+
+    def send_request_message(self, block):
+        print "Sending REQUEST message to peer", self.peer
+        msg = RequestMessage(block.piece_index, block.block_offset, block.block_size)
+
+        try:
+            self.socket.send(msg.to_bytes())
+        except socket.error, e:
+            print "could not send data to peer", self.peer
+            return
+
+    def run(self):
+        request_thread = Thread(target=self.request_for_blocks, args=())
+        request_thread.start()
+
+
+        receive_thread = Thread(target=self.receive_messages, args=())
+        receive_thread.start()
+
+        # request_thread.join()
+        # receive_thread.join()
         return
+
+    def receive_messages(self):
+        while self.should_receive_messages():
+            msg = self.receive_next_message()
+            self.handle_msg(msg)
+
+        print "stopped receiving messages"
+
+
+    def request_for_blocks(self):
+        while True:
+            if self.is_closed():
+                print "connection has already been closed, closing down sending thread to peer", self.peer
+                break
+
+            if self.is_choked():
+                self.send_interested_message()
+                time.sleep(5)
+                continue
+
+            if len(self.currently_requested_blocks) > 10:
+                continue
+
+                # self.send_request_message(Block(0, i * 2**14, 2**19))
+            self.send_request_message(Block(0, 0, 2**14))
+            time.sleep(10)
+            # for block in currently_interested_piece.blocks_list:
+            #     if block not in self.currently_requested_blocks:
+            #         self.currently_requested_blocks.add(block)
+            #         self.send_request_message(block)
+
+
+
+
+
+
+
+
+
 

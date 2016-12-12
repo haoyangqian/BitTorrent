@@ -145,7 +145,7 @@ class Torrent(object):
 
             if peer_connection.is_connected():
                 connected_peers.append(connected_peers)
-                peer_connection.start_download()
+                peer_connection.run()
 
         print len(connected_peers), "peer(s) connected"
 
