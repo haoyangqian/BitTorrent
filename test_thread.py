@@ -5,7 +5,6 @@ import Queue
 
 threadList = ["Thread-1", "Thread-2", "Thread-3"]
 nameList = ["One", [2,3,4], "Three", 4, "Five"]
-queueLock = threading.Lock()
 pieces_queue_list = []
 data_queue_list = []
 
@@ -30,9 +29,7 @@ def download_data(threadName, q, q2):
             print "%s download %s\n" % (threadName, data)
             q2.put({'index':data,'data':data})
 
-def main():
-    #torrent = Torrent("4.torrent")
-    #print torrent.torrent_file.is_complete()
+def test_thread():
     global exitFlag
     exitFlag = 0
     threads = []
@@ -72,10 +69,32 @@ def main():
                 index = item['index']
                 print "receive pieces:%s data:%s\n" % (data,data)
                 bm.set(index)
+                
+def test_file():
+    f = open('1.txt','r')
+    for i in range(3):
+        f.seek(5)
+        print f.read(5)
 
-                       
+class piece(object):
+    def __init__(self,a,b):
+        self.a = a
+        self.b = b
     
+def test_in():
+    piece_list = []
+    a = piece(1,1)
+    b = piece(2,2)
+    piece_list.append(a)
+    piece_list.append(b)
+    a.a = 2
+    if a in piece_list:
+        print "yes"
     
+def main():
+    #torrent = Torrent("4.torrent")
+    #print torrent.torrent_file.is_complete()
+    test_in()    
 
 if __name__ == "__main__":
     main()

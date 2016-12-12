@@ -41,9 +41,15 @@ class PeerConnection(object):
         print self.info_hash
         return
 
-
-    def download_piece(self):
+    
+    def download_piece(self,piece_index):
         return
 
+    def available_pieces(self):
+        #return a set
+        pieces = [1,2,3,4,5]
+        return set(pieces)
+
+  
 
 

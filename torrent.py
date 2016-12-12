@@ -137,41 +137,61 @@ class Torrent(object):
                 address = ''
         return peer_list
 
-    def connect(self):
+    def connect(self,peer_list):
         print self.peer_list
-        peer = self.peer_list[2]
-
-        peer_connection = PeerConnection(self.generate_peer_id(),
+        ## gpeer = self.peer_list[2]
+        connection_list = []
+        for peer in peer_list:
+            peer_connection = PeerConnection(self.peer_id,
                                          peer,
                                          self.info_hash,
                                          Queue(),
                                          Queue())
+            peer_connection.handshake()
+            connection_list.append(peer_connection)
 
-        peer_connection.handshake()
+        return connection_list
 
-        return
-
-
+    ## setup a temp file if not exist, otherwise open it
     def setup_temp_file(self):
         self.folder_directory = self.folder_name.rsplit('.',1)[0]
         self.temp_file_path = path.join(self.folder_directory, self.folder_name + '.tmp')
-        if path.exists(self.temp_file_path):
-            open(self.temp_file_path, 'w').close()
-        else:
-            mkdir(self.folder_directory)
-        tempfile = open(self.temp_file_path, 'wb+')
+        if not path.exists(self.temp_file_path):
+            if not path.exists(self.folder_directory):
+                mkdir(self.folder_directory)
+            open(self.temp_file_path, 'w+').close()
+        tempfile = open(self.temp_file_path, 'rb+')
         return tempfile
-
-    def download(self):
-        ## check bitmap in
-        ## connection_list = connect(self.peer_list)
-        #while 1:
-            #checkbitmap
-        return
     
+    def downloadfile(self):
+        connection_list = self.connect(self.peer_list)
+        pieces_in_flight = []
+        while 1:
+            if self.torrent_file.is_complete():
+                print "receive all the pieces!!"
+                break
+            missing_pieces = self.torrent_file.missing_pieces()
+            for connection in connection_list:
+                if connection.state == 'idle':
+                    ##check queue, if have piece available, get it and write to file
+                    ##remove it from the pieces_in_flight list
+                    if len(connection.data_queue) > 0:
+                        returnpiece = connection.data_queue.get()
+                        returnpiece.write_to_file()
+                        pieces_in_flight.remove(returnpiece)
+                    ##allocate download mission
+                    for piece in missing_pieces:
+                        if piece not in pieces_in_flight and piece in connection.available_piece():
+                            connection.download(piece)
+                            pieces_in_flight.append(piece)
+                            
+
+
 def main():
-    torrent = Torrent("4.torrent")
+    t = Torrent("4.torrent")
+    t.downloadfile()
     #print torrent.torrent_file.is_complete()
+    
 
                     
 if __name__ == "__main__":
