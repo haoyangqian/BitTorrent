@@ -281,13 +281,3 @@ class PeerConnection(object):
             #     if block not in self.currently_requested_blocks:
             #         self.currently_requested_blocks.add(block)
             #         self.send_request_message(block)
-
-
-
-
-
-
-
-
-
-

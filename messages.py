@@ -35,12 +35,12 @@ class HandshakeMessage(object):
 def create_hanshake_message(info_hash, peer_id):
     return HandshakeMessage(chr(19), BT_PROTOCOL, RESERVED, info_hash, peer_id)
 
-
 def create_handshake_message_from_payload(payload):
     if len(payload) == 0:
         print "empty handshake message"
         sys.exit(-1)
 
+def create_handshake_message_from_payload(payload):
     print "creating handshake message from payload", payload, "$$$"
     pstr_len = payload[0]
     pstr = payload[1:20]
@@ -152,6 +152,7 @@ def bytes_to_int(bytestring):
             number += byte * 256**i
         i -= 1
     return number
+
 
 def int_to_bytes(number):
     return struct.pack("I", number)
