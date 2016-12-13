@@ -112,7 +112,7 @@ class TorrentFile(object):
         missing_list = []
         for i in range(self.pieces_num):
             if not self.bm.test(i):
-                missing_list.append(i)
+                missing_list.append(self.piece_list[i])
         return missing_list
 
     def set_piece(self,index,content):
