@@ -38,10 +38,8 @@ def create_hanshake_message(info_hash, peer_id):
 def create_handshake_message_from_payload(payload):
     if len(payload) == 0:
         print "empty handshake message"
-        sys.exit(-1)
+        return None
 
-def create_handshake_message_from_payload(payload):
-    print "creating handshake message from payload", payload, "$$$"
     pstr_len = payload[0]
     pstr = payload[1:20]
     reserved = payload[20:28]
@@ -76,7 +74,6 @@ class HaveMessage(PeerMessage):
     def __init__(self, msg_id, msg):
         PeerMessage.__init__(self, msg_id, msg)
         self.piece_index = struct.unpack("!I", msg)[0]
-        print "received a have message, piece index:", self.piece_index
 
 class RequestMessage(PeerMessage):
     def __init__(self, index, begin, length):
@@ -113,7 +110,6 @@ class BitfieldMessage(PeerMessage):
                 self.bitfield.set(i)
 
         # self.bitfield = BitMap.fromstring(msg)
-        print "received a bitfield message, bitmap:", self.bitfield
 
 class PieceMessage(PeerMessage):
     def __init__(self, msg_len, msg_id, msg):
@@ -121,7 +117,6 @@ class PieceMessage(PeerMessage):
         self.index = bytes_to_int(msg[0:4])
         self.begin = bytes_to_int(msg[4:8])
         self.block = msg[8:len(msg)]
-        print "received a piece message, index", self.index, "begin", self.begin, "and some block"
 
 def parse_message(msg_len, msg):
     if msg_len > 0:

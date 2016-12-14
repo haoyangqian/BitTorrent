@@ -12,18 +12,30 @@ class Block(object):
         self.pending = False
 
         self.piece_index = piece_index
-        self.block_offset = block_offset * block_size
+        self.block_offset = block_offset * BLOCK_SIZE
         self.block_size = block_size
         self.payload = None
 
+    def __hash__(self):
+        return hash((self.piece_index, self.block_offset, self.block_size))
+
+    def __eq__(self, other):
+        return (self.piece_index, self.block_offset, self.block_size) == (other.piece_index, other.block_offset, other.block_size)
+
+    def __ne__(self, other):
+        return not (self == other)
+
     def is_complete(self):
-        return self.payload == None
+        return not self.missing and not self.pending
 
     def get_info(self):
         print "-- block offset:" ,self.block_offset ,"  block size:" ,       self.block_size
 
     def mark_pending(self):
         self.pending = True
+
+    def mark_missing(self):
+        self.missing = True
 
     def set_payload(self, payload):
         self.missing = False
@@ -33,19 +45,19 @@ class Block(object):
 class Piece(object):
     def __init__(self,piece_index,piece_size,fs,piece_hash):
         self.block_num = piece_size / BLOCK_SIZE
-        self.block_list = dict()
+        self.block_list = []
         self.piece_index = piece_index
         self.piece_size = piece_size
         self.piece_hash = piece_hash
         for block in range(self.block_num):
             b = Block(piece_index, block, BLOCK_SIZE)
-            self.block_list[b.block_offset] = b
+            self.block_list.append(b)
         #if have extra smaller blocks
         if piece_size % BLOCK_SIZE != 0:
             last_block_size = piece_size % BLOCK_SIZE
 
             #print self.block_num,last_block_size
-            self.block_list.append(Block(self.block_num,last_block_size));
+            self.block_list.append(Block(self.piece_index, self.block_num,last_block_size));
             self.block_num += 1
         self.bm = BitMap(self.block_num)
         self.file = fs
@@ -57,10 +69,19 @@ class Piece(object):
         self.file.seek(self.piece_index * PIECE_SIZE)
         content = self.file.read(self.piece_size)
         piecehash = hashlib.sha1(content).digest()
+
+        # print piecehash, self.piece_hash
+        # print self.piece_size
         return piecehash == self.piece_hash
 
+    def written_piece_hash(self):
+        self.file.seek(self.piece_index * PIECE_SIZE)
+        content = self.file.read(self.piece_size)
+        piecehash = hashlib.sha1(content).digest()
+        return piecehash
+
     def update_bitmap(self):
-        for i in self.block_list:
+        for i in range(len(self.block_list)):
             if self.block_list[i].is_complete():
                 self.bm.set(i)
             else:
@@ -121,7 +142,7 @@ class TorrentFile(object):
         missing_list = []
         for i in range(self.pieces_num):
             if not self.bm.test(i):
-                missing_list.append(i)
+                missing_list.append(self.piece_list[i])
         return missing_list
 
     def set_piece(self,index,content):
