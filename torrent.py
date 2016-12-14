@@ -170,6 +170,22 @@ class Torrent(object):
         tempfile = open(self.temp_file_path, 'rb+')
         return tempfile
 
+
+
+    def cut_files(self):
+        #if not self.torrent_file.is_complete():
+        #    print "file not complete!"
+        #    return
+        index = 0
+        for f in self.file_list:
+            new_file_name = path.join(self.folder_directory,f['path'][0])
+            fs = open(new_file_name,'w+')
+            length = f['length']
+            self.tmp_file.seek(index)
+            content = self.tmp_file.read(length)
+            fs.write(content)
+            index += length
+
     def downloadfile(self):
         connection_list = self.connect()
         pieces_in_flight = []
@@ -222,6 +238,9 @@ def main():
     start = time.time()
     t = Torrent("1.torrent")
     t.downloadfile()
+    t.cut_files()
+    #t.downloadfile()
+    #print torrent.torrent_file.is_complete()
 
     end = time.time()
 
