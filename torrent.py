@@ -61,6 +61,7 @@ class Torrent(object):
 
         self.start_time = time.time()
         self.previous_completed_pieces = self.torrent_file.bm.count()
+        self.connection_list = []
 
 
     def __str__(self):
@@ -163,7 +164,6 @@ class Torrent(object):
                 peer_connection.run()
 
         logging.debug("{} peer(s) connected for".format(len(connected_peers)))
-        irint len(connected_peers), "peer(s) connected for torrent fi"
 
         return connected_peers
 
@@ -208,7 +208,7 @@ class Torrent(object):
         return self.torrent_file.bm.size()
 
     def downloadfile(self):
-        connection_list = self.connect()
+        self.connection_list = self.connect()
         pieces_in_flight = []
 
         self.start_time = time.time()
@@ -217,7 +217,7 @@ class Torrent(object):
             if self.torrent_file.is_complete():
                 logging.debug("All pieces have been received")
 
-                for connection in connection_list:
+                for connection in self.connection_list:
                     logging.debug("Closing connection to peer {}".format(connection.peer))
                     connection.close()
 
@@ -226,7 +226,7 @@ class Torrent(object):
 
             connections_to_remove = []
 
-            for connection in connection_list:
+            for connection in self.connection_list:
                 if connection.is_closed():
                     connections_to_remove.append(connection)
                     continue
@@ -267,7 +267,7 @@ class Torrent(object):
                             break
 
             for remove in connections_to_remove:
-                connection_list.remove(remove)
+                self.connection_list.remove(remove)
 
 
 
