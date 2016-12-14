@@ -15,7 +15,7 @@ PEER_ID_START = '-UT1000-'
 LOCAL_PORT = 6888
 
 class Torrent(object):
-    def __init__(self,torrent_file):
+    def __init__(self,torrent_file,backing_file):
         ##
         self.metainfo = self.get_torrent(torrent_file)
         self.announce_url = self.metainfo['announce']
@@ -44,13 +44,14 @@ class Torrent(object):
             self.folder_name = self.info['name']
         else:
             self.folder_name = 'temp'
+        self.backing_file = backing_file
         ## set up tmp tile
-        self.tmp_file = self.setup_temp_file()
+        self.tmp_file = self.setup_temp_file(backing_file)
         ## get peer_list
         self.peer_list = self.get_peers()
         ## get torrent_file
         self.torrent_file = TorrentFile(self.file_length,self.pieces_hash_array,self.piece_length,self.tmp_file)
-
+        self.complete = False
     def __str__(self):
         return "Torrent: announce url: %s \nfile_length: %d\ninfo_hash:%s\n" % (self.announce_url,self.file_length,self.info_hash)
 
@@ -153,12 +154,13 @@ class Torrent(object):
         return connection_list
 
     ## setup a temp file if not exist, otherwise open it
-    def setup_temp_file(self):
-        self.folder_directory = self.folder_name.rsplit('.',1)[0]
-        self.temp_file_path = path.join(self.folder_directory, self.folder_name + '.tmp')
+    def setup_temp_file(self,backing_file):
+        self.temp_file_path = path.join(backing_file, self.folder_name + '.tmp')
+        #print backing_file
+        #print self.temp_file_path
         if not path.exists(self.temp_file_path):
-            if not path.exists(self.folder_directory):
-                mkdir(self.folder_directory)
+            if not path.exists(backing_file):
+                mkdir(backing_file)
             open(self.temp_file_path, 'w+').close()
         tempfile = open(self.temp_file_path, 'rb+')
         return tempfile
@@ -171,7 +173,7 @@ class Torrent(object):
         #    return
         index = 0
         for f in self.file_list:
-            new_file_name = path.join(self.folder_directory,f['path'][0])
+            new_file_name = path.join(self.backing_file,f['path'][0])
             fs = open(new_file_name,'w+')
             length = f['length']
             self.tmp_file.seek(index)
@@ -203,11 +205,10 @@ class Torrent(object):
                         if piece not in pieces_in_flight and piece in connection.available_piece():
                             connection.download(piece)
                             pieces_in_flight.append(piece)
-                            
-
+        self.complete = True
 
 def main():
-    t = Torrent("4.torrent")
+    t = Torrent("4.torrent","torrent")
     t.cut_files()
     #t.downloadfile()
     #print torrent.torrent_file.is_complete()
