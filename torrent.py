@@ -20,6 +20,8 @@ LOCAL_PORT = 6888
 
 class Torrent(object):
     def __init__(self,torrent_file,backing_file):
+        self.logger = logging.getLogger(__name__)
+
         ##
         self.metainfo = self.get_torrent(torrent_file)
         self.announce_url = self.metainfo['announce']
@@ -58,6 +60,8 @@ class Torrent(object):
         self.complete = False
 
         self.start_time = time.time()
+        self.previous_completed_pieces = self.torrent_file.bm.count()
+
 
     def __str__(self):
         return "Torrent: announce url: %s \nfile_length: %d\ninfo_hash:%s\n" % (self.announce_url,self.file_length,self.info_hash)
@@ -146,7 +150,7 @@ class Torrent(object):
         return peer_list
 
     def connect(self):
-        print self.peer_list
+        # print self.peer_list
 
         connected_peers = []
         for peer in self.peer_list:
@@ -158,7 +162,8 @@ class Torrent(object):
                 connected_peers.append(peer_connection)
                 peer_connection.run()
 
-        print len(connected_peers), "peer(s) connected"
+        logging.debug("{} peer(s) connected for".format(len(connected_peers)))
+        irint len(connected_peers), "peer(s) connected for torrent fi"
 
         return connected_peers
 
@@ -196,6 +201,9 @@ class Torrent(object):
     def complete_pieces(self):
         return self.torrent_file.bm.count()
 
+    def complete_pieces_current_run(self):
+        return self.torrent_file.bm.count() - self.previous_completed_pieces
+
     def total_pieces(self):
         return self.torrent_file.bm.size()
 
@@ -207,17 +215,20 @@ class Torrent(object):
 
         while 1:
             if self.torrent_file.is_complete():
-                print "all pieces have been received"
+                logging.debug("All pieces have been received")
 
                 for connection in connection_list:
-                    print "closing conenction", connection.peer
+                    logging.debug("Closing connection to peer {}".format(connection.peer))
                     connection.close()
 
                 break
             missing_pieces = self.torrent_file.missing_pieces()
+
+            connections_to_remove = []
+
             for connection in connection_list:
                 if connection.is_closed():
-                    connection_list.remove(connection)
+                    connections_to_remove.append(connection)
                     continue
 
                 if connection.can_make_request():
@@ -231,11 +242,12 @@ class Torrent(object):
                         if returnpiece.is_complete():
                             pieces_in_flight.remove(returnpiece)
                             missing_pieces.remove(returnpiece)
-                            print "retrived a completed piece from peer", connection.peer, returnpiece.piece_index
-                            print len(missing_pieces), "pieces left to download"
+                            print "Retrieved piece {} from peer {}".format(returnpiece.piece_index, connection.peer)
+                            logging.debug("{} pieces left to download".format(missing_pieces))
+
                         else:
-                            print "received a bad block from peer", connection.peer, returnpiece.piece_index
-                            print returnpiece.piece_size, returnpiece.written_piece_hash(), returnpiece.piece_hash
+                            logging.debug("received a bad block from peer {} {}".format(connection.peer, returnpiece.piece_index))
+                            # print returnpiece.piece_size, returnpiece.written_piece_hash(), returnpiece.piece_hash
 
                     # print missing_pieces
 
@@ -244,18 +256,23 @@ class Torrent(object):
                         in_flight = piece in pieces_in_flight
                         can_request = connection.can_request_piece(piece)
 
-                        print "in flight {} can_request {}".format(in_flight, can_request)
-                        print "{} pieces in flight, {} missing pieces".format(len(pieces_in_flight), len(missing_pieces))
+                        # print "in flight {} can_request {}".format(in_flight, can_request)
+                        # print "{} pieces in flight, {} missing pieces".format(len(pieces_in_flight), len(missing_pieces))
 
                         if piece not in pieces_in_flight and connection.can_request_piece(piece):
-                            print "asking peer", connection.peer, "to download piece", piece.piece_index
+                            logging.debug("Asking peer {} to download piece {}".format(connection.peer, piece.piece_index))
                             connection.download_piece(piece)
                             pieces_in_flight.append(piece)
-                            print "################ Missing piece queue size", len(missing_pieces)
+                            logging.debug("Missing piece queue size {}".format(len(missing_pieces)))
                             break
 
+            for remove in connections_to_remove:
+                connection_list.remove(remove)
+
+
+
         end_time = time.time()
-        print "torrent file {} completed in {} seconds".format(self.folder_name, end_time - self.start_time)
+        print "Torrent file {} completed in {} seconds".format(self.folder_name, end_time - self.start_time)
 
 def main():
 

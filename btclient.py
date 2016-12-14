@@ -1,6 +1,7 @@
 from prettytable import PrettyTable
 from torrent import Torrent
 from threading import Thread
+import time
 
 torrent_list = []
 mix = PrettyTable()
@@ -29,7 +30,6 @@ def main():
                         backing_file = command[3]
                         t = Torrent(torrent_file,backing_file)
 
-                        mix.add_row([len(torrent_list),t.backing_file,t.complete,len(t.file_list),len(t.peer_list),1295])
                         torrent_list.append(t)
 
                         download_thread = Thread(target=start_download, args=(t,))
@@ -51,9 +51,15 @@ def main():
                 mix.clear_rows()
                 for torrent in torrent_list:
                     complete = torrent.complete_pieces()
+                    complete_current = torrent.complete_pieces_current_run()
+                    print "complete is {}, complete_current is {}".format(complete, complete_current)
                     total = torrent.total_pieces()
-                    pieces = str(complete) + '/'+str(total)+'('+str(complete/total)+'%)'
-                    mix.add_row([len(torrent_list),t.backing_file,t.complete,pieces,len(t.file_list),len(t.peer_list),1295])
+
+                    pieces = "{}/{} ({:0.2f}%)".format(complete, total, float(complete) / total * 100)
+
+                    speed = complete_current * (2 ** 19) / 1024 / (time.time() - torrent.start_time)
+
+                    mix.add_row([len(torrent_list),t.backing_file,t.complete,pieces,len(t.file_list),len(t.peer_list),speed])
                 print mix
 
         elif cmd_type == "close":

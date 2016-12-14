@@ -146,13 +146,14 @@ class PeerConnection(object):
                 result = False
             else:
                 result = self.available_pieces.test(piece.piece_index)
+
+            if self.available_pieces.count() == 0:
+                self.close()
+
+            return result
         except:
-            result = False
+            return False
 
-        if self.available_pieces.count() == 0:
-            self.close()
-
-        return result
 
     def receive_next_message(self):
 
