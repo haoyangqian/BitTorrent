@@ -22,7 +22,7 @@ MESSAGE_LEN_SIZE = 4
 HANDSHAKE_MESSAGE_LEN = 49 + len(BT_PROTOCOL)
 
 MAX_BLOCK_WAITING_MILLIS = 3000
-MAX_BLOCK_REQUESTS_IN_FLIGHT = 10
+MAX_BLOCK_REQUESTS_IN_FLIGHT = 20
 
 def current_millis():
     return int(round(time.time() * 1000))
@@ -139,10 +139,20 @@ class PeerConnection(object):
         return
 
     def can_request_piece(self, piece):
-        if self.available_pieces is None or not self.job_queue.empty():
-            return False
-        else:
-            return self.available_pieces.test(piece.piece_index)
+        result = False
+        try:
+
+            if self.available_pieces is None or not self.job_queue.empty():
+                result = False
+            else:
+                result = self.available_pieces.test(piece.piece_index)
+        except:
+            result = False
+
+        if self.available_pieces.count() == 0:
+            self.close()
+
+        return result
 
     def receive_next_message(self):
 

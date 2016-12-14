@@ -56,6 +56,9 @@ class Torrent(object):
         ## get torrent_file
         self.torrent_file = TorrentFile(self.file_length,self.pieces_hash_array,self.piece_length,self.tmp_file)
         self.complete = False
+
+        self.start_time = time.time()
+
     def __str__(self):
         return "Torrent: announce url: %s \nfile_length: %d\ninfo_hash:%s\n" % (self.announce_url,self.file_length,self.info_hash)
 
@@ -171,7 +174,8 @@ class Torrent(object):
         tempfile = open(self.temp_file_path, 'rb+')
         return tempfile
 
-
+    def get_start_time(self):
+        return self.start_time
 
     def cut_files(self):
         #if not self.torrent_file.is_complete():
@@ -187,15 +191,20 @@ class Torrent(object):
             fs.write(content)
             index += length
 
+        self.complete = True
+
     def complete_pieces(self):
         return self.torrent_file.bm.count()
 
     def total_pieces(self):
         return self.torrent_file.bm.size()
-        
+
     def downloadfile(self):
         connection_list = self.connect()
         pieces_in_flight = []
+
+        self.start_time = time.time()
+
         while 1:
             if self.torrent_file.is_complete():
                 print "all pieces have been received"
@@ -232,12 +241,21 @@ class Torrent(object):
 
                     ##allocate download mission
                     for piece in missing_pieces:
+                        in_flight = piece in pieces_in_flight
+                        can_request = connection.can_request_piece(piece)
+
+                        print "in flight {} can_request {}".format(in_flight, can_request)
+                        print "{} pieces in flight, {} missing pieces".format(len(pieces_in_flight), len(missing_pieces))
+
                         if piece not in pieces_in_flight and connection.can_request_piece(piece):
                             print "asking peer", connection.peer, "to download piece", piece.piece_index
                             connection.download_piece(piece)
                             pieces_in_flight.append(piece)
                             print "################ Missing piece queue size", len(missing_pieces)
                             break
+
+        end_time = time.time()
+        print "torrent file {} completed in {} seconds".format(self.folder_name, end_time - self.start_time)
 
 def main():
 

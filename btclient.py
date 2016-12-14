@@ -1,5 +1,6 @@
 from prettytable import PrettyTable
 from torrent import Torrent
+from threading import Thread
 
 torrent_list = []
 mix = PrettyTable()
@@ -27,9 +28,15 @@ def main():
                         torrent_file = command[2]
                         backing_file = command[3]
                         t = Torrent(torrent_file,backing_file)
+
+                        mix.add_row([len(torrent_list),t.backing_file,t.complete,len(t.file_list),len(t.peer_list),1295])
                         torrent_list.append(t)
-                    except:
-                        print "exception when create torrent"
+
+                        download_thread = Thread(target=start_download, args=(t,))
+                        download_thread.start()
+                        # download_thread.join()
+                    except Exception as e:
+                        print "exception when create torrent", e
 
             if torrent_type == "remove":
                 if len(command) != 3:
@@ -47,7 +54,8 @@ def main():
                     total = torrent.total_pieces()
                     pieces = str(complete) + '/'+str(total)+'('+str(complete/total)+'%)'
                     mix.add_row([len(torrent_list),t.backing_file,t.complete,pieces,len(t.file_list),len(t.peer_list),1295])
-                print mix                                
+                print mix
+
         elif cmd_type == "close":
             print "All Modules have been destroyed, shutting down"
             exit(1)
@@ -55,6 +63,12 @@ def main():
             continue
         else:
             print "Invalid command. Try 'help'"
+
+
+def start_download(torrent):
+    torrent.downloadfile()
+    torrent.cut_files()
+    return
 
 if __name__ == "__main__":
     main()
