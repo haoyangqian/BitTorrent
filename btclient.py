@@ -3,7 +3,7 @@ from torrent import Torrent
 
 torrent_list = []
 mix = PrettyTable()
-mix.field_names = ["id", "name","done","files","peers","down(KB)"]
+mix.field_names = ["id", "name","done","pieces","files","peers","down(KB)"]
 
 
 def main():
@@ -27,7 +27,6 @@ def main():
                         torrent_file = command[2]
                         backing_file = command[3]
                         t = Torrent(torrent_file,backing_file)
-                        mix.add_row([len(torrent_list),t.backing_file,t.complete,len(t.file_list),len(t.peer_list),1295])
                         torrent_list.append(t)
                     except:
                         print "exception when create torrent"
@@ -42,9 +41,13 @@ def main():
                 except:
                     print "wrong torrent_id"
             if torrent_type == "list":
- 
-                print mix
-                                
+                mix.clear_rows()
+                for torrent in torrent_list:
+                    complete = torrent.complete_pieces()
+                    total = torrent.total_pieces()
+                    pieces = str(complete) + '/'+str(total)+'('+str(complete/total)+'%)'
+                    mix.add_row([len(torrent_list),t.backing_file,t.complete,pieces,len(t.file_list),len(t.peer_list),1295])
+                print mix                                
         elif cmd_type == "close":
             print "All Modules have been destroyed, shutting down"
             exit(1)

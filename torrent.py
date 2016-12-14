@@ -187,6 +187,12 @@ class Torrent(object):
             fs.write(content)
             index += length
 
+    def complete_pieces(self):
+        return self.torrent_file.bm.count()
+
+    def total_pieces(self):
+        return self.torrent_file.bm.size()
+        
     def downloadfile(self):
         connection_list = self.connect()
         pieces_in_flight = []
