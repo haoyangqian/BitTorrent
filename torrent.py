@@ -1,7 +1,7 @@
 from bencode import bencode,bdecode
 from Pieces import TorrentFile
 import hashlib
-from os import path, mkdir
+from os import path, mkdir, sys
 import requests
 import random
 import string
@@ -146,14 +146,13 @@ class Torrent(object):
 
         connected_peers = []
         for peer in self.peer_list:
-            # if peer == "167.88.114.173:6881":
             peer_connection = PeerConnection(self.peer_id,
                                              peer,
                                              self.info_hash)
 
-            # if peer_connection.is_connected():
-            connected_peers.append(peer_connection)
-            peer_connection.run()
+            if peer_connection.is_connected():
+                connected_peers.append(peer_connection)
+                peer_connection.run()
 
         print len(connected_peers), "peer(s) connected"
 
@@ -236,7 +235,7 @@ class Torrent(object):
 def main():
 
     start = time.time()
-    t = Torrent("1.torrent")
+    t = Torrent("2.torrent")
     t.downloadfile()
     t.cut_files()
     #t.downloadfile()
@@ -246,7 +245,7 @@ def main():
 
     print "total time", end - start
     print t.torrent_file.is_complete()
-    return
+    sys.exit(0)
 
 
 if __name__ == "__main__":

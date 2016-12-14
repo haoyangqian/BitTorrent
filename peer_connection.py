@@ -145,9 +145,15 @@ class PeerConnection(object):
             return self.available_pieces.test(piece.piece_index)
 
     def receive_next_message(self):
+
         try:
+            self.socket.settimeout(TCP_CONNECTION_TIMEOUT)
             message_length_raw = self.socket.recv(MESSAGE_LEN_SIZE)
+        except socket.timeout:
+            self.socket.settimeout(None)
+            return None
         except socket.error, e:
+            self.socket.settimeout(None)
             self.logger.debug("{} has closed connection".format(self.peer))
             self.close()
             return None
@@ -295,7 +301,9 @@ class PeerConnection(object):
 
         while self.should_receive_messages():
             msg = self.receive_next_message()
-            self.handle_msg(msg)
+
+            if msg is not None:
+                self.handle_msg(msg)
 
         self.logger.debug("{} stopped receiving messages".format(self.peer))
 
@@ -306,6 +314,7 @@ class PeerConnection(object):
 
     def request_for_blocks(self):
         while True:
+
             if self.is_closed():
                 self.logger.debug("{} connection has already been closed, closing down sending thread to peer".format(self.peer))
                 return
@@ -341,9 +350,6 @@ class PeerConnection(object):
             if self.currently_interested_piece is None:
                 time.sleep(1)
                 continue
-
-            # if self.currently_requested_block is not None:
-            #     continue
 
             if self.is_busy():
                 block = self.get_next_block_to_request()
