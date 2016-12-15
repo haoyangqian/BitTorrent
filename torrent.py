@@ -13,10 +13,12 @@ from bitmap import BitMap
 import logging
 
 format = '%(name)s - %(levelname)s - %(message)s'
-logging.basicConfig(level=logging.INFO, format=format)
+    logging.basicConfig(level=logging.DEBUG, format=format)
 
 PEER_ID_START = '-UT1000-'
 LOCAL_PORT = 6888
+
+MAX_PIECE_IN_FLIGHT_SECOND = 10
 
 class Torrent(object):
     def __init__(self,torrent_file,backing_file):
@@ -209,7 +211,8 @@ class Torrent(object):
 
     def downloadfile(self):
         self.connection_list = self.connect()
-        pieces_in_flight = []
+        pieces_in_flight = {}
+        piece_to_peer = {}
 
         self.start_time = time.time()
         missing_pieces = self.torrent_file.missing_pieces()
@@ -227,52 +230,74 @@ class Torrent(object):
                     connection.close()
 
                 break
-            missing_pieces = self.torrent_file.missing_pieces()
 
+            missing_pieces = self.torrent_file.missing_pieces()
             connections_to_remove = []
+            pieces_to_expire = []
+            for piece in pieces_in_flight:
+                if pieces_in_flight[piece] + MAX_PIECE_IN_FLIGHT_SECOND < time.time():
+                    pieces_to_expire.append(piece)
+                    # print "expiring piece", piece.piece_index
+
+            for piece in pieces_to_expire:
+                del pieces_in_flight[piece]
+                piece_to_peer[piece].reset()
 
             for connection in self.connection_list:
                 if connection.is_closed():
                     connections_to_remove.append(connection)
                     continue
 
-                if connection.can_make_request():
+                if not connection.data_queue.empty():
                     # print connection.peer, "can make a request"
                     ##check queue, if have piece available, get it and write to file
                     ##remove it from the pieces_in_flight list
-                    if not connection.data_queue.empty():
-                        returnpiece = connection.data_queue.get()
-                        returnpiece.write_to_file()
+                    returnpiece = connection.data_queue.get()
+                    returnpiece.write_to_file()
 
-                        if returnpiece.is_complete():
-                            pieces_in_flight.remove(returnpiece)
-                            missing_pieces.remove(returnpiece)
-                            print "Retrieved piece {} from peer {}".format(returnpiece.piece_index, connection.peer)
-                            logging.debug("{} pieces left to download".format(missing_pieces))
+                    if returnpiece.is_complete():
+                        if returnpiece in pieces_in_flight:
+                            del pieces_in_flight[returnpiece]
 
-                        else:
-                            logging.debug("received a bad block from peer {} {}".format(connection.peer, returnpiece.piece_index))
-                            # print returnpiece.piece_size, returnpiece.written_piece_hash(), returnpiece.piece_hash
+                        missing_pieces.remove(returnpiece)
+                        print "Torrent file {} received piece {} from peer {}".format(self.folder_name, returnpiece.piece_index, connection.peer)
+                        logging.debug("{} pieces left to download".format(len(missing_pieces)))
 
-                    # print missing_pieces
+                    else:
+                        logging.debug("received a bad block from peer {} {}".format(connection.peer, returnpiece.piece_index))
+                        # print returnpiece.piece_size, returnpiece.written_piece_hash(), returnpiece.piece_hash
+
+                if connection.can_make_request():
+                        # print missing_pieces
 
                     ##allocate download mission
                     for piece in missing_pieces:
                         in_flight = piece in pieces_in_flight
                         can_request = connection.can_request_piece(piece)
 
-                        # print "in flight {} can_request {}".format(in_flight, can_request)
-                        # print "{} pieces in flight, {} missing pieces".format(len(pieces_in_flight), len(missing_pieces))
-
                         if piece not in pieces_in_flight and connection.can_request_piece(piece):
                             logging.debug("Asking peer {} to download piece {}".format(connection.peer, piece.piece_index))
+                            # print "Asking peer {} to download piece {}".format(connection.peer, piece.piece_index)
                             connection.download_piece(piece)
-                            pieces_in_flight.append(piece)
+                            pieces_in_flight[piece] = time.time()
+                            piece_to_peer[piece] = connection
                             logging.debug("Missing piece queue size {}".format(len(missing_pieces)))
                             break
+                    # print "cannot distribute piece"
+                    # print "in flight {} can_request {}".format(in_flight, can_request)
+                    # print "{} pieces in flight, {} missing pieces".format(len(pieces_in_flight), len(missing_pieces))
+                    # print "@1 choke {} busy {} choke {}".format(connection.is_closed(), connection.is_busy(), connection.is_choked())
+                # else:
+                    # print "cannot make request"
+                    # print "@2 choke {} busy {} choke {}".format(connection.is_closed(), connection.is_busy(), connection.is_choked())
+
 
             for remove in connections_to_remove:
                 self.connection_list.remove(remove)
+
+                if len(self.connection_list) == 0:
+                    print "Torrent {} has no more active peer".format(self.folder_name)
+                    sys.exit(-1)
 
 
 
@@ -282,7 +307,7 @@ class Torrent(object):
 def main():
 
     start = time.time()
-    t = Torrent("2.torrent")
+    t = Torrent("4.torrent")
     t.downloadfile()
     t.cut_files()
     #t.downloadfile()

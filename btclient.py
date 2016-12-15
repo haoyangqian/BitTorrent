@@ -5,7 +5,7 @@ import time
 
 torrent_list = []
 mix = PrettyTable()
-mix.field_names = ["id", "name","done","pieces","files","peers","down(KB)", "duration(s)"]
+mix.field_names = ["id", "name","done","pieces","files","peers","speed(KB)", "duration(s)"]
 
 
 def main():

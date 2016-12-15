@@ -63,6 +63,15 @@ class Piece(object):
         self.file = fs
         return
 
+    def __hash__(self):
+        return hash((self.piece_index, self.piece_size, self.piece_hash))
+
+    def __eq__(self, other):
+        return (self.piece_index, self.piece_size, self.piece_hash) == (other.piece_index, self.piece_size, self.piece_hash)
+
+    def __ne__(self, other):
+        return not (self == other)
+
     #check block's bitmap in disk and the whole SHA1
     def is_complete(self):
         #check SHA1

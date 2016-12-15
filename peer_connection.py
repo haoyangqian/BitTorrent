@@ -9,7 +9,6 @@ import time
 import logging
 
 TCP_CONNECTION_TIMEOUT = 2
-
 TCP_BUFFER_SIZE = 128000
 
 STATE_INITIALIZED = "INITIALIZED"
@@ -34,7 +33,6 @@ class PeerConnection(object):
 
     def __init__(self, self_peer_id, peer, info_hash):
         self.logger = logging.getLogger(__name__)
-        self.logger
 
         self.self_peer_id = self_peer_id
         self.peer = peer
@@ -53,6 +51,7 @@ class PeerConnection(object):
         self.currently_interested_piece = None
         self.currently_requested_blocks = {}
         self.currently_requested_block = None
+        self.available_pieces = None
 
         self.lock = Lock()
 
@@ -101,6 +100,13 @@ class PeerConnection(object):
     def is_choked(self):
         return self.am_choking
 
+    def reset(self):
+        self.lock.acquire()
+        self.update_state(STATE_IDLE)
+        self.currently_interested_piece = None
+        self.currently_requested_blocks = {}
+        self.lock.release()
+
     def should_receive_messages(self):
         return not self.is_closed()
 
@@ -139,9 +145,14 @@ class PeerConnection(object):
         return
 
     def can_request_piece(self, piece):
+
+        if self.available_pieces is None:
+            if self.is_connected() or self.is_idle():
+                self.close()
+                return False
+
         result = False
         try:
-
             if self.available_pieces is None or not self.job_queue.empty():
                 result = False
             else:
@@ -151,7 +162,8 @@ class PeerConnection(object):
                 self.close()
 
             return result
-        except:
+        except Exception, e:
+            # print self.peer, e
             return False
 
 
@@ -186,7 +198,7 @@ class PeerConnection(object):
                 size_received += len(next_chunk)
         except:
             self.logger.debug("{} error receiving the next full message {} {}".format(self.peer, message_length, size_received))
-            self.close
+            self.close()
             return None
 
         parsed_msg = parse_message(message_length, message)
@@ -225,7 +237,10 @@ class PeerConnection(object):
 
     def handle_have_msg(self, msg):
         self.logger.debug("{} handling HAVE msg from peer".format(self.peer))
-        self.available_pieces.set(msg.piece_index)
+        try:
+            self.available_pieces.set(msg.piece_index)
+        except:
+            self.close()
 
     def handle_bitfield_msg(self, msg):
         self.logger.debug("{} handling BITFIELD msg from peer".format(self.peer))
