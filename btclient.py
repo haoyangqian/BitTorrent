@@ -2,11 +2,13 @@ from prettytable import PrettyTable
 from torrent import Torrent
 from threading import Thread
 import time
+import logging
 
 torrent_list = []
 mix = PrettyTable()
 mix.field_names = ["id", "name","done","pieces","files","peers","speed(KB/s)", "duration(s)"]
 
+logging.basicConfig(level=logging.INFO, format=format)
 
 def main():
     print "BitTorrent Client started"
