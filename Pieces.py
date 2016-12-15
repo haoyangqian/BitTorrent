@@ -124,6 +124,7 @@ class TorrentFile(object):
             self.piece_list.append(Piece(self.pieces_num,last_piece_size,fs,pieces_hash_array[self.pieces_num]));
             self.pieces_num += 1
         self.bm = BitMap(self.pieces_num)
+        print "init bm:",self.bm
 
     def update_bitmap(self):
          for i in range(self.pieces_num):

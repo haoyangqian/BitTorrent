@@ -230,6 +230,7 @@ class PeerConnection(object):
     def handle_bitfield_msg(self, msg):
         self.logger.debug("{} handling BITFIELD msg from peer".format(self.peer))
         self.available_pieces = msg.bitfield
+        print "pieces:",self.available_pieces
 
     def handle_piece_msg(self, msg):
         self.logger.debug("{} handling PIECE msg from peer {} {}".format(self.peer, msg.index, msg.begin))

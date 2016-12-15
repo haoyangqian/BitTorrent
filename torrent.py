@@ -199,22 +199,27 @@ class Torrent(object):
         self.complete = True
 
     def complete_pieces(self):
-        return self.torrent_file.bm.count()
+        return self.torrent_file.pieces_num - len(self.torrent_file.missing_pieces())
 
     def complete_pieces_current_run(self):
         return self.torrent_file.bm.count() - self.previous_completed_pieces
 
     def total_pieces(self):
-        return self.torrent_file.bm.size()
+        return self.torrent_file.pieces_num
 
     def downloadfile(self):
         self.connection_list = self.connect()
         pieces_in_flight = []
 
         self.start_time = time.time()
-
+        missing_pieces = self.torrent_file.missing_pieces()
         while 1:
-            if self.torrent_file.is_complete():
+            if len(missing_pieces) == 0:
+                print "bitmap:",self.torrent_file.bm.tostring()
+                print "bm count:",self.torrent_file.bm.count()
+                print "bm size:",self.torrent_file.bm.size()
+                print "num pieces:",self.torrent_file.pieces_num
+                print "missing piece:",len(missing_pieces)
                 logging.debug("All pieces have been received")
 
                 for connection in self.connection_list:

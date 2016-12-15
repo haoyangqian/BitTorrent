@@ -49,19 +49,21 @@ def main():
                     print "wrong torrent_id"
             if torrent_type == "list":
                 mix.clear_rows()
-                for torrent in torrent_list:
-                    complete = torrent.complete_pieces()
-                    complete_current = torrent.complete_pieces_current_run()
-                    print "complete is {}, complete_current is {}".format(complete, complete_current)
-                    total = torrent.total_pieces()
+                index = 0
+                for t in torrent_list:
+                    complete = t.complete_pieces()
+                    complete_current = t.complete_pieces_current_run()
+                    #print "complete is {}, complete_current is {}".format(complete, complete_current)
+                    total = t.total_pieces()
 
                     pieces = "{}/{} ({:0.2f}%)".format(complete, total, float(complete) / total * 100)
 
-                    speed = "{:0.2f}".format(complete_current * (2 ** 19) / 1024 / (time.time() - torrent.start_time))
+                    speed = "{:0.2f}".format(complete_current * (2 ** 19) / 1024 / (time.time() - t.start_time))
 
-                    duration = "{:0.2f}".format(time.time() - torrent.start_time)
+                    duration = "{:0.2f}".format(time.time() - t.start_time)
 
-                    mix.add_row([len(torrent_list),t.backing_file,t.complete,pieces,len(t.file_list),len(t.connection_list),speed, duration])
+                    mix.add_row([index,t.backing_file,t.complete,pieces,len(t.file_list),len(t.connection_list),speed, duration])
+                    index = index + 1
                 print mix
 
         elif cmd_type == "close":
