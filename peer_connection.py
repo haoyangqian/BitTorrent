@@ -20,7 +20,7 @@ STATE_IDLE = "IDLE"
 MESSAGE_LEN_SIZE = 4
 HANDSHAKE_MESSAGE_LEN = 49 + len(BT_PROTOCOL)
 
-MAX_BLOCK_WAITING_MILLIS = 3000
+MAX_BLOCK_WAITING_MILLIS = 5000
 MAX_BLOCK_REQUESTS_IN_FLIGHT = 20
 
 def current_millis():
@@ -140,7 +140,9 @@ class PeerConnection(object):
         return
 
     def download_piece(self, piece):
+        self.logger.debug("{} received job for piece {}".format(self.peer, piece.piece_index))
         self.job_queue.put(piece)
+        self.logger.debug("{} job queue is {}".format(self.peer, self.job_queue.qsize()))
         self.current_piece = piece
         return
 
@@ -245,7 +247,7 @@ class PeerConnection(object):
     def handle_bitfield_msg(self, msg):
         self.logger.debug("{} handling BITFIELD msg from peer".format(self.peer))
         self.available_pieces = msg.bitfield
-        print "pieces:",self.available_pieces
+        self.logger.debug("{} pieces {}".format(self.peer, self.available_pieces))
 
     def handle_piece_msg(self, msg):
         self.logger.debug("{} handling PIECE msg from peer {} {}".format(self.peer, msg.index, msg.begin))
@@ -303,13 +305,15 @@ class PeerConnection(object):
 
     def get_next_block_to_request(self):
         if self.currently_interested_piece is None:
+            self.logger.debug("{} currently_interested_piece is None".format(self.peer))
             return None
 
         try:
             for block in self.currently_interested_piece.block_list:
                 if block.missing and not block.pending:
                     return block
-        except:
+        except Exception, e:
+            self.logger.debug("{} error in get_next_block_to_request {}".format(self.peer, e))
             return None
 
     def run(self):
@@ -364,6 +368,7 @@ class PeerConnection(object):
                 del self.currently_requested_blocks[block]
 
             if len(self.currently_requested_blocks) > MAX_BLOCK_REQUESTS_IN_FLIGHT:
+                # self.logger.debug("{} block requests in flight is at {}".format(self.peer, len(self.currently_requested_blocks)))
                 self.lock.release()
                 continue
 
@@ -372,9 +377,11 @@ class PeerConnection(object):
             if not self.job_queue.empty():
                 self.currently_interested_piece = self.job_queue.get()
                 self.update_state(STATE_BUSY)
+                self.currently_requested_blocks = {}
                 self.logger.debug("{} Started working on piece {}".format(self.peer, self.currently_interested_piece.piece_index))
 
             if self.currently_interested_piece is None:
+                self.logger.debug("{} currently interested piece is determined to be None".format(self.peer))
                 time.sleep(1)
                 continue
 

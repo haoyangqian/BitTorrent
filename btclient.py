@@ -5,7 +5,7 @@ import time
 
 torrent_list = []
 mix = PrettyTable()
-mix.field_names = ["id", "name","done","pieces","files","peers","speed(KB)", "duration(s)"]
+mix.field_names = ["id", "name","done","pieces","files","peers","speed(KB/s)", "duration(s)"]
 
 
 def main():
@@ -58,7 +58,7 @@ def main():
 
                     pieces = "{}/{} ({:0.2f}%)".format(complete, total, float(complete) / total * 100)
 
-                    speed = "{:0.2f}".format(complete_current * (2 ** 19) / 1024 / (time.time() - t.start_time))
+                    speed = "0" if t.complete else "{:0.2f}".format(complete_current * (2 ** 19) / 1024 / (time.time() - t.start_time))
 
                     duration = "{:0.2f}".format(time.time() - t.start_time)
 

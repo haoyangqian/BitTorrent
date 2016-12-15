@@ -37,7 +37,6 @@ def create_hanshake_message(info_hash, peer_id):
 
 def create_handshake_message_from_payload(payload):
     if len(payload) == 0:
-        print "empty handshake message"
         return None
 
     pstr_len = payload[0]

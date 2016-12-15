@@ -1,6 +1,7 @@
 from bitmap import BitMap
 import hashlib
 import os
+import logging
 
 BLOCK_SIZE = 2**14
 PIECE_SIZE = 2**19
@@ -29,13 +30,15 @@ class Block(object):
         return not self.missing and not self.pending
 
     def get_info(self):
-        print "-- block offset:" ,self.block_offset ,"  block size:" ,       self.block_size
+        print "-- block offset:" ,self.block_offset ,"  block size:" , self.block_size
 
     def mark_pending(self):
         self.pending = True
 
     def mark_missing(self):
         self.missing = True
+        self.pending = False
+        self.payload = None
 
     def set_payload(self, payload):
         self.missing = False
@@ -119,10 +122,20 @@ class Piece(object):
             self.file.seek(self.piece_index * PIECE_SIZE)
             self.file.write(payload)
 
+    def clear_data(self):
+        for block in self.block_list:
+            block.payload = None
+
+    def expire(self):
+        for block in self.block_list:
+            block.mark_missing()
+        self.bm = BitMap(self.block_num)
 
 
 class TorrentFile(object):
     def __init__(self,file_length,pieces_hash_array,piece_size,fs):
+        self.logger = logging.getLogger(__name__)
+
         self.pieces_num = file_length/PIECE_SIZE
         self.piece_list = []
         for piece in range(self.pieces_num):
@@ -133,7 +146,7 @@ class TorrentFile(object):
             self.piece_list.append(Piece(self.pieces_num,last_piece_size,fs,pieces_hash_array[self.pieces_num]));
             self.pieces_num += 1
         self.bm = BitMap(self.pieces_num)
-        print "init bm:",self.bm
+        self.logger.debug("init bm {}".format(self.bm))
 
     def update_bitmap(self):
          for i in range(self.pieces_num):
